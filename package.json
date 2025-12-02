@@ -1,0 +1,28 @@
+{
+  "name": "zoom",
+  "version": "1.0.0",
+  "description": "A video conferencing application for educational purposes, built with Django and WebRTC.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tailwind": "tailwindcss",
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thorium234/thoriumcall_django.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Thorium234/thoriumcall_django/issues"
+  },
+  "homepage": "https://github.com/Thorium234/thoriumcall_django#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17"
+  }
+}

@@ -1,164 +1,318 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>ThoriumCall - Room: {{ room_name }}</title>
-    <style>
-        body { font-family: sans-serif; background-color: #2c2f33; color: white; margin: 0; }
-        .main-container { display: flex; height: 100vh; }
-        #call-container { flex-grow: 1; display: flex; flex-direction: column; }
-        #presentation-container { width: 40%; background-color: #23272a; padding: 1rem; overflow-y: auto; }
-        #presentation-area { white-space: pre-wrap; font-size: 1.1rem; }
-        #video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1rem;
-            padding: 1rem;
-            flex-grow: 1;
-        }
-        video { width: 100%; border-radius: 8px; background-color: black; }
-        .video-container { position: relative; }
-        .username-overlay { position: absolute; bottom: 8px; left: 8px; background-color: rgba(0, 0, 0, 0.5); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; }
-        #controls { padding: 1rem; text-align: center; background-color: #23272a; }
-        button { padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; margin: 5px; }
-        .host-controls { padding: 1rem; border-top: 1px solid #444; }
-        .note-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #333; }
-    </style>
-</head>
-<body>
-    <div class="main-container">
-        <div id="call-container">
-            <h1>Room: {{ room_name }}</h1>
-            <div id="video-grid">
-                <div class="video-container">
-                    <video id="local-video" autoplay muted playsinline></video>
-                    <div class="username-overlay">You ({{ request.user.username }})</div>
+{% extends 'video/base.html' %}
+
+{% block title %}Room: {{ room_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Custom styles for video elements, if not fully covered by Bootstrap */
+    .video-container {
+        position: relative;
+        background-color: black;
+        border-radius: 8px;
+        overflow: hidden; /* Ensures video corners are rounded */
+    }
+    .video-container video {
+        width: 100%;
+        height: 100%; /* Fill container */
+        object-fit: cover; /* Maintain aspect ratio and cover container */
+        display: block; /* Remove extra space below video */
+    }
+    .username-overlay {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    #presentation-area {
+        white-space: pre-wrap;
+        font-size: 1.1rem;
+        background-color: #343a40; /* Darker background for presentation */
+        padding: 1rem;
+        border-radius: 8px;
+        min-height: 200px; /* Ensure it's visible even if empty */
+    }
+    #notes-list .note-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column vh-100">
+    <div class="container-fluid flex-grow-1 d-flex p-0">
+        <div id="call-container" class="d-flex flex-column flex-grow-1 bg-dark text-white">
+            <h1 class="p-3 mb-0">Room: {{ room_name }}</h1>
+            <div id="video-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 p-3 flex-grow-1 overflow-auto">
+                <div class="col">
+                    <div class="video-container shadow">
+                        <video id="local-video" autoplay muted playsinline></video>
+                        <div class="username-overlay">You ({{ request.user.username }})</div>
+                    </div>
                 </div>
             </div>
-            <div id="controls">
-                <button id="mute-btn">Mute</button>
-                <button id="video-btn">Stop Video</button>
-                <a href="{% url 'index' %}"><button id="leave-btn">Leave Room</button></a>
+            <div id="controls" class="bg-dark p-3 text-center">
+                <button id="mute-btn" class="btn btn-primary me-2">Mute</button>
+                <button id="video-btn" class="btn btn-primary me-2">Stop Video</button>
+                <a href="{% url 'index' %}" class="btn btn-danger me-2">Leave Room</a>
                 {% if is_host %}
-                <a href="{% url 'download_attendance' room_name=room_name %}"><button>Download Attendance</button></a>
-                <a href="{% url 'manage_notes' room_name=room_name %}"><button>Manage Notes</button></a>
+                <a href="{% url 'download_attendance' room_name=room_name %}" class="btn btn-info me-2">Download Attendance</a>
+                <a href="{% url 'manage_notes' room_name=room_name %}" class="btn btn-secondary">Manage Notes</a>
                 {% endif %}
             </div>
         </div>
-        <div id="presentation-container">
-            <h2>Presentation</h2>
-            <div id="presentation-area">
-                <p>Notes presented by the host will appear here.</p>
+        <div id="presentation-sidebar" class="bg-dark text-white p-3" style="width: 350px; flex-shrink: 0; overflow-y: auto;">
+            <h2 class="mb-3">Presentation</h2>
+            <div id="presentation-area" class="mb-4">
+                <p class="text-muted">Notes presented by the host will appear here.</p>
             </div>
             {% if is_host %}
-            <div class="host-controls">
-                <h3>Host Controls</h3>
-                <ul id="notes-list">
+            <div class="host-controls card bg-secondary text-white p-3">
+                <h3 class="card-title mb-3">Host Controls</h3>
+                <ul id="notes-list" class="list-unstyled">
                     {% for note in notes %}
-                    <li class="note-item">
+                    <li class="note-item d-flex justify-content-between align-items-center mb-2">
                         <span>Note from {{ note.created_at|date:"H:i" }}</span>
-                        <button class="present-btn" data-note-id="{{ note.id }}">Present</button>
+                        <button class="present-btn btn btn-sm btn-success" data-note-id="{{ note.id }}">Present</button>
                     </li>
+                    {% empty %}
+                    <li class="text-muted">No notes available.</li>
                     {% endfor %}
                 </ul>
             </div>
             {% endif %}
         </div>
     </div>
+</div>
 
-    {{ room_name|json_script:"room-name" }}
-    {{ request.user.username|json_script:"user-username" }}
+{{ room_name|json_script:"room-name" }}
+{{ request.user.username|json_script:"user-username" }}
 
-    <script>
-        const roomName = JSON.parse(document.getElementById('room-name').textContent);
-        const localUsername = JSON.parse(document.getElementById('user-username').textContent);
-        const videoGrid = document.getElementById('video-grid');
-        const localVideo = document.getElementById('local-video');
-        const presentationArea = document.getElementById('presentation-area');
+{% block extra_js %}
+<script>
+    const roomName = JSON.parse(document.getElementById('room-name').textContent);
+    const localUsername = JSON.parse(document.getElementById('user-username').textContent);
+    const videoGrid = document.getElementById('video-grid');
+    const localVideo = document.getElementById('local-video');
+    const presentationArea = document.getElementById('presentation-area');
 
-        const peerConnections = {};
-        let localStream;
+    const peerConnections = {};
+    let localStream;
 
-        const chatSocket = new WebSocket('ws://' + window.location.host + '/ws/video/' + roomName + '/');
+    const chatSocket = new WebSocket('ws://' + window.location.host + '/ws/video/' + roomName + '/');
 
-        chatSocket.onopen = function(e) { /* ... */ };
+    chatSocket.onopen = function(e) {
+        console.log('WebSocket connection established.');
+        chatSocket.send(JSON.stringify({
+            'type': 'join_room',
+            'username': localUsername,
+        }));
+    };
 
-        chatSocket.onmessage = async function(e) {
-            const data = JSON.parse(e.data);
-            const type = data.type;
-            const fromUsername = data.username;
+    chatSocket.onmessage = async function(e) {
+        const data = JSON.parse(e.data);
+        const type = data.type;
+        const fromUsername = data.username;
 
-            // Handle note updates
-            if (type === 'note_update') {
-                presentationArea.innerHTML = `<pre>${data.content}</pre>`;
-                return;
+        // Handle note updates
+        if (type === 'note_update') {
+            presentationArea.innerHTML = `<pre class="text-white">${data.content}</pre>`;
+            return;
+        }
+        
+        if (fromUsername === localUsername) {
+            return; // Ignore messages from self
+        }
+
+        console.log('Received message:', type, 'from', fromUsername);
+
+        if (type === 'join_room') {
+            await createPeerConnection(fromUsername, true);
+        } else if (type === 'offer') {
+            await createPeerConnection(fromUsername, false);
+            await peerConnections[fromUsername].setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await peerConnections[fromUsername].createAnswer();
+            await peerConnections[fromUsername].setLocalDescription(answer);
+            chatSocket.send(JSON.stringify({
+                'type': 'answer',
+                'answer': answer,
+                'username': localUsername,
+                'target': fromUsername,
+            }));
+        } else if (type === 'answer') {
+            await peerConnections[fromUsername].setRemoteDescription(new RTCSessionDescription(data.answer));
+        } else if (type === 'candidate') {
+            try {
+                await peerConnections[fromUsername].addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (error) {
+                console.error('Error adding received ICE candidate', error);
             }
-            
-            if (fromUsername === localUsername) return;
+        } else if (type === 'leave_room') {
+            removePeerConnection(fromUsername);
+        }
+    };
 
-            // ... (rest of the WebRTC signaling logic)
-            if (type === 'join_room') { await createPeerConnection(fromUsername, true); }
-            else if (type === 'offer') { /* ... */ }
-            else if (type === 'answer') { /* ... */ }
-            else if (type === 'candidate') { /* ... */ }
-            else if (type === 'leave_room') { removePeerConnection(fromUsername); }
-        };
+    chatSocket.onclose = function(e) {
+        console.error('WebSocket connection closed unexpectedly.');
+        for (const username in peerConnections) {
+            removePeerConnection(username);
+        }
+    };
 
-        // Add event listeners for present buttons
-        document.querySelectorAll('.present-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const noteId = this.dataset.noteId;
-                chatSocket.send(JSON.stringify({
-                    'type': 'present_note',
-                    'note_id': noteId,
-                }));
-            });
+    // Add event listeners for present buttons
+    document.querySelectorAll('.present-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const noteId = this.dataset.noteId;
+            chatSocket.send(JSON.stringify({
+                'type': 'present_note',
+                'note_id': noteId,
+            }));
+        });
+    });
+
+    // 2. Get local video/audio stream
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+            localStream = stream;
+            localVideo.srcObject = stream;
+        })
+        .catch(error => {
+            console.error('Error accessing media devices.', error);
+            alert("Could not access camera and microphone. Please check permissions.");
         });
 
-        // ... (rest of the script is the same as before)
-        chatSocket.onopen = function(e) {
-            console.log('WebSocket connection established.');
-            chatSocket.send(JSON.stringify({ 'type': 'join_room', 'username': localUsername, }));
+    // 3. Implement Peer Connection Logic
+    async function createPeerConnection(remoteUsername, isOfferor) {
+        if (peerConnections[remoteUsername]) {
+            console.log(`Connection with ${remoteUsername} already exists.`);
+            return;
+        }
+        console.log(`Creating peer connection for ${remoteUsername}`);
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // Google's public STUN server
+        });
+        peerConnections[remoteUsername] = pc;
+
+        // Add local stream tracks to the connection
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+        // Handle incoming remote stream
+        pc.ontrack = event => {
+            handleRemoteStream(event, remoteUsername);
         };
 
-        chatSocket.onmessage = async function(e) {
-            const data = JSON.parse(e.data);
-            const type = data.type;
-            const fromUsername = data.username;
-
-            if (type === 'note_update') {
-                presentationArea.innerText = data.content;
-                return;
-            }
-
-            if (fromUsername === localUsername) return;
-
-            if (type === 'join_room') { await createPeerConnection(fromUsername, true); }
-            else if (type === 'offer') {
-                await createPeerConnection(fromUsername, false);
-                await peerConnections[fromUsername].setRemoteDescription(new RTCSessionDescription(data.offer));
-                const answer = await peerConnections[fromUsername].createAnswer();
-                await peerConnections[fromUsername].setLocalDescription(answer);
-                chatSocket.send(JSON.stringify({ 'type': 'answer', 'answer': answer, 'username': localUsername, 'target': fromUsername, }));
-            } else if (type === 'answer') {
-                await peerConnections[fromUsername].setRemoteDescription(new RTCSessionDescription(data.answer));
-            } else if (type === 'candidate') {
-                try { await peerConnections[fromUsername].addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (error) { console.error('Error adding received ICE candidate', error); }
-            } else if (type === 'leave_room') {
-                removePeerConnection(fromUsername);
+        // Handle ICE candidates
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                chatSocket.send(JSON.stringify({
+                    'type': 'candidate',
+                    'candidate': event.candidate,
+                    'username': localUsername,
+                    'target': remoteUsername,
+                }));
             }
         };
 
-        chatSocket.onclose = function(e) { /* ... */ };
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => { localStream = stream; localVideo.srcObject = stream; }).catch(error => { console.error('Error accessing media devices.', error); });
-        async function createPeerConnection(remoteUsername, isOfferor) { /* ... */ }
-        function handleRemoteStream(event, remoteUsername) { /* ... */ }
-        function removePeerConnection(remoteUsername) { /* ... */ }
-        const muteBtn = document.getElementById('mute-btn');
-        const videoBtn = document.getElementById('video-btn');
-        muteBtn.addEventListener('click', () => { /* ... */ });
-        videoBtn.addEventListener('click', () => { /* ... */ });
-        window.addEventListener('beforeunload', () => { /* ... */ });
+        if (isOfferor) {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            chatSocket.send(JSON_stringify({
+                'type': 'offer',
+                'offer': offer,
+                'username': localUsername,
+                'target': remoteUsername,
+            }));
+        }
+    }
 
-    </script>
-</body>
-</html>
+    function handleRemoteStream(event, remoteUsername) {
+        let videoCol = document.getElementById(`col-${remoteUsername}`);
+        if (!videoCol) {
+            videoCol = document.createElement('div');
+            videoCol.id = `col-${remoteUsername}`;
+            videoCol.className = 'col'; // Bootstrap column
+
+            const container = document.createElement('div');
+            container.id = `container-${remoteUsername}`;
+            container.className = 'video-container shadow'; // Bootstrap shadow
+
+            const video = document.createElement('video');
+            video.id = `video-${remoteUsername}`;
+            video.autoplay = true;
+            video.playsInline = true;
+
+            const usernameOverlay = document.createElement('div');
+            usernameOverlay.className = 'username-overlay';
+            usernameOverlay.innerText = remoteUsername;
+
+            container.appendChild(video);
+            container.appendChild(usernameOverlay);
+            videoCol.appendChild(container);
+            videoGrid.appendChild(videoCol);
+        }
+        videoCol.querySelector('video').srcObject = event.streams[0];
+    }
+
+    function removePeerConnection(remoteUsername) {
+        if (peerConnections[remoteUsername]) {
+            peerConnections[remoteUsername].close();
+            delete peerConnections[remoteUsername];
+        }
+        const videoCol = document.getElementById(`col-${remoteUsername}`);
+        if (videoCol) {
+            videoCol.remove();
+        }
+        console.log(`Connection with ${remoteUsername} closed.`);
+    }
+
+    // 4. UI Controls
+    const muteBtn = document.getElementById('mute-btn');
+    const videoBtn = document.getElementById('video-btn');
+
+    muteBtn.addEventListener('click', () => {
+        const audioTrack = localStream.getTracks().find(track => track.kind === 'audio');
+        if (audioTrack.enabled) {
+            audioTrack.enabled = false;
+            muteBtn.textContent = 'Unmute';
+            muteBtn.classList.remove('btn-primary');
+            muteBtn.classList.add('btn-warning');
+        } else {
+            audioTrack.enabled = true;
+            muteBtn.textContent = 'Mute';
+            muteBtn.classList.remove('btn-warning');
+            muteBtn.classList.add('btn-primary');
+        }
+    });
+
+    videoBtn.addEventListener('click', () => {
+        const videoTrack = localStream.getTracks().find(track => track.kind === 'video');
+        if (videoTrack.enabled) {
+            videoTrack.enabled = false;
+            videoBtn.textContent = 'Start Video';
+            videoBtn.classList.remove('btn-primary');
+            videoBtn.classList.add('btn-warning');
+        } else {
+            videoTrack.enabled = true;
+            videoBtn.textContent = 'Stop Video';
+            videoBtn.classList.remove('btn-warning');
+            videoBtn.classList.add('btn-primary');
+        }
+    });
+
+    window.addEventListener('beforeunload', () => {
+        chatSocket.send(JSON.stringify({
+            'type': 'leave_room',
+            'username': localUsername,
+        }));
+        chatSocket.close();
+    });
+
+</script>
+
