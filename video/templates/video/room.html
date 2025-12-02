@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThoriumCall - Room: {{ room_name }}</title>
+    <style>
+        body { font-family: sans-serif; }
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 300px);
+            gap: 10px;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border: 1px solid black;
+        }
+        #local-video {
+            border: 2px solid blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Room: {{ room_name }}</h1>
+    <div id="video-grid">
+        <video id="local-video" autoplay muted playsinline></video>
+    </div>
+
+    {{ room_name|json_script:"room-name" }}
+    <script>
+        // WebRTC logic will go here
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        console.log("You are in room: " + roomName);
+
+        // TODO:
+        // 1. Get local video/audio stream
+        // 2. Connect to signaling server (WebSocket)
+        // 3. Implement peer connection logic
+    </script>
+</body>
+</html>

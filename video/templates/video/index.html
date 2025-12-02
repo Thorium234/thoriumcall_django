@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThoriumCall - Lobby</title>
+</head>
+<body>
+    <h1>ThoriumCall</h1>
+
+    {% if user.is_authenticated %}
+        <p>Welcome, {{ user.username }}! You are logged in as a {{ user.profile.get_is_lecturer_display }}.</p>
+        <a href="{% url 'logout' %}">Logout</a>
+        <hr>
+        <h2>Enter a room name to join or create</h2>
+        <input type="text" id="room-name-input" placeholder="Room Name">
+        <button id="join-room-button">Join</button>
+
+        <script>
+            document.querySelector('#join-room-button').onclick = function(e) {
+                var roomName = document.querySelector('#room-name-input').value;
+                if (roomName) {
+                    window.location.pathname = '/' + roomName + '/';
+                } else {
+                    alert('Please enter a room name.');
+                }
+            };
+
+            document.querySelector('#room-name-input').addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    document.querySelector('#join-room-button').click();
+                }
+            });
+        </script>
+    {% else %}
+        <p>Please login or register to continue.</p>
+        <a href="{% url 'login' %}">Login</a> |
+        <a href="{% url 'register' %}">Register</a>
+    {% endif %}
+
+</body>
+</html>
