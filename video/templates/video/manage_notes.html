@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Notes for {{ room.name }}</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 2rem; }
+        h1, h2 { color: #4a4a4a; }
+        a { color: #7289da; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        form { margin-bottom: 2rem; }
+        textarea { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; }
+        button { background-color: #7289da; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+        .note-list { list-style: none; padding: 0; }
+        .note-item { background: #fafafa; border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; border-radius: 5px; }
+        .note-content { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Manage Notes for Room: {{ room.name }}</h1>
+        <p><a href="{% url 'room' room_name=room.name %}">&larr; Back to Room</a></p>
+
+        <h2>Add a New Note</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Save Note</button>
+        </form>
+
+        <h2>Existing Notes</h2>
+        <ul class="note-list">
+            {% for note in notes %}
+                <li class="note-item">
+                    <p><strong>Created:</strong> {{ note.created_at|date:"Y-m-d H:i" }}</p>
+                    <pre class="note-content">{{ note.content }}</pre>
+                </li>
+            {% empty %}
+                <li>No notes have been added yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

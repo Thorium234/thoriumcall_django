@@ -2,6 +2,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from .models import Note
 
 class CustomUserCreationForm(UserCreationForm):
     is_lecturer = forms.BooleanField(
@@ -22,3 +23,11 @@ class CustomUserCreationForm(UserCreationForm):
             user.profile.is_lecturer = self.cleaned_data.get('is_lecturer', False)
             user.profile.save()
         return user
+
+class NoteForm(forms.ModelForm):
+    class Meta:
+        model = Note
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 10, 'cols': 80}),
+        }

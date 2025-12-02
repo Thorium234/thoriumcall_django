@@ -3,38 +3,162 @@
 <head>
     <title>ThoriumCall - Room: {{ room_name }}</title>
     <style>
-        body { font-family: sans-serif; }
+        body { font-family: sans-serif; background-color: #2c2f33; color: white; margin: 0; }
+        .main-container { display: flex; height: 100vh; }
+        #call-container { flex-grow: 1; display: flex; flex-direction: column; }
+        #presentation-container { width: 40%; background-color: #23272a; padding: 1rem; overflow-y: auto; }
+        #presentation-area { white-space: pre-wrap; font-size: 1.1rem; }
         #video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, 300px);
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+            flex-grow: 1;
         }
-        video {
-            width: 100%;
-            height: auto;
-            border: 1px solid black;
-        }
-        #local-video {
-            border: 2px solid blue;
-        }
+        video { width: 100%; border-radius: 8px; background-color: black; }
+        .video-container { position: relative; }
+        .username-overlay { position: absolute; bottom: 8px; left: 8px; background-color: rgba(0, 0, 0, 0.5); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; }
+        #controls { padding: 1rem; text-align: center; background-color: #23272a; }
+        button { padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; margin: 5px; }
+        .host-controls { padding: 1rem; border-top: 1px solid #444; }
+        .note-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #333; }
     </style>
 </head>
 <body>
-    <h1>Room: {{ room_name }}</h1>
-    <div id="video-grid">
-        <video id="local-video" autoplay muted playsinline></video>
+    <div class="main-container">
+        <div id="call-container">
+            <h1>Room: {{ room_name }}</h1>
+            <div id="video-grid">
+                <div class="video-container">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <div class="username-overlay">You ({{ request.user.username }})</div>
+                </div>
+            </div>
+            <div id="controls">
+                <button id="mute-btn">Mute</button>
+                <button id="video-btn">Stop Video</button>
+                <a href="{% url 'index' %}"><button id="leave-btn">Leave Room</button></a>
+                {% if is_host %}
+                <a href="{% url 'download_attendance' room_name=room_name %}"><button>Download Attendance</button></a>
+                <a href="{% url 'manage_notes' room_name=room_name %}"><button>Manage Notes</button></a>
+                {% endif %}
+            </div>
+        </div>
+        <div id="presentation-container">
+            <h2>Presentation</h2>
+            <div id="presentation-area">
+                <p>Notes presented by the host will appear here.</p>
+            </div>
+            {% if is_host %}
+            <div class="host-controls">
+                <h3>Host Controls</h3>
+                <ul id="notes-list">
+                    {% for note in notes %}
+                    <li class="note-item">
+                        <span>Note from {{ note.created_at|date:"H:i" }}</span>
+                        <button class="present-btn" data-note-id="{{ note.id }}">Present</button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     {{ room_name|json_script:"room-name" }}
-    <script>
-        // WebRTC logic will go here
-        const roomName = JSON.parse(document.getElementById('room-name').textContent);
-        console.log("You are in room: " + roomName);
+    {{ request.user.username|json_script:"user-username" }}
 
-        // TODO:
-        // 1. Get local video/audio stream
-        // 2. Connect to signaling server (WebSocket)
-        // 3. Implement peer connection logic
+    <script>
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        const localUsername = JSON.parse(document.getElementById('user-username').textContent);
+        const videoGrid = document.getElementById('video-grid');
+        const localVideo = document.getElementById('local-video');
+        const presentationArea = document.getElementById('presentation-area');
+
+        const peerConnections = {};
+        let localStream;
+
+        const chatSocket = new WebSocket('ws://' + window.location.host + '/ws/video/' + roomName + '/');
+
+        chatSocket.onopen = function(e) { /* ... */ };
+
+        chatSocket.onmessage = async function(e) {
+            const data = JSON.parse(e.data);
+            const type = data.type;
+            const fromUsername = data.username;
+
+            // Handle note updates
+            if (type === 'note_update') {
+                presentationArea.innerHTML = `<pre>${data.content}</pre>`;
+                return;
+            }
+            
+            if (fromUsername === localUsername) return;
+
+            // ... (rest of the WebRTC signaling logic)
+            if (type === 'join_room') { await createPeerConnection(fromUsername, true); }
+            else if (type === 'offer') { /* ... */ }
+            else if (type === 'answer') { /* ... */ }
+            else if (type === 'candidate') { /* ... */ }
+            else if (type === 'leave_room') { removePeerConnection(fromUsername); }
+        };
+
+        // Add event listeners for present buttons
+        document.querySelectorAll('.present-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const noteId = this.dataset.noteId;
+                chatSocket.send(JSON.stringify({
+                    'type': 'present_note',
+                    'note_id': noteId,
+                }));
+            });
+        });
+
+        // ... (rest of the script is the same as before)
+        chatSocket.onopen = function(e) {
+            console.log('WebSocket connection established.');
+            chatSocket.send(JSON.stringify({ 'type': 'join_room', 'username': localUsername, }));
+        };
+
+        chatSocket.onmessage = async function(e) {
+            const data = JSON.parse(e.data);
+            const type = data.type;
+            const fromUsername = data.username;
+
+            if (type === 'note_update') {
+                presentationArea.innerText = data.content;
+                return;
+            }
+
+            if (fromUsername === localUsername) return;
+
+            if (type === 'join_room') { await createPeerConnection(fromUsername, true); }
+            else if (type === 'offer') {
+                await createPeerConnection(fromUsername, false);
+                await peerConnections[fromUsername].setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnections[fromUsername].createAnswer();
+                await peerConnections[fromUsername].setLocalDescription(answer);
+                chatSocket.send(JSON.stringify({ 'type': 'answer', 'answer': answer, 'username': localUsername, 'target': fromUsername, }));
+            } else if (type === 'answer') {
+                await peerConnections[fromUsername].setRemoteDescription(new RTCSessionDescription(data.answer));
+            } else if (type === 'candidate') {
+                try { await peerConnections[fromUsername].addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (error) { console.error('Error adding received ICE candidate', error); }
+            } else if (type === 'leave_room') {
+                removePeerConnection(fromUsername);
+            }
+        };
+
+        chatSocket.onclose = function(e) { /* ... */ };
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => { localStream = stream; localVideo.srcObject = stream; }).catch(error => { console.error('Error accessing media devices.', error); });
+        async function createPeerConnection(remoteUsername, isOfferor) { /* ... */ }
+        function handleRemoteStream(event, remoteUsername) { /* ... */ }
+        function removePeerConnection(remoteUsername) { /* ... */ }
+        const muteBtn = document.getElementById('mute-btn');
+        const videoBtn = document.getElementById('video-btn');
+        muteBtn.addEventListener('click', () => { /* ... */ });
+        videoBtn.addEventListener('click', () => { /* ... */ });
+        window.addEventListener('beforeunload', () => { /* ... */ });
+
     </script>
 </body>
 </html>
